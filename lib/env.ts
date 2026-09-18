@@ -10,6 +10,19 @@ function required(name: string): string {
   return value;
 }
 
+/**
+ * Vercel's Supabase integration sets POSTGRES_URL (pooled) rather than
+ * DATABASE_URL. Its `sslmode=require` needs libpq semantics, otherwise pg
+ * tries to verify Supabase's private CA and refuses the connection.
+ */
+function supabasePooledUrl(): string | undefined {
+  const raw = process.env.POSTGRES_URL;
+  if (!raw) return undefined;
+  const url = new URL(raw);
+  url.searchParams.set("uselibpqcompat", "true");
+  return url.toString();
+}
+
 export const env = {
   get cloroApiKey(): string {
     return required("CLORO_API_KEY");
@@ -18,7 +31,11 @@ export const env = {
     return process.env.CLORO_API_URL ?? "https://api.cloro.dev";
   },
   get databaseUrl(): string {
-    return required("DATABASE_URL");
+    return (
+      process.env.DATABASE_URL ||
+      supabasePooledUrl() ||
+      required("DATABASE_URL")
+    );
   },
   /**
    * The bearer token clients send to the REST API and the MCP endpoint.

@@ -14,7 +14,17 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 
-const url = process.env.DATABASE_URL;
+// Falls back to the pooled POSTGRES_URL that Vercel's Supabase integration
+// sets; see supabasePooledUrl in lib/env.ts for the uselibpqcompat flag.
+function supabasePooledUrl() {
+  const raw = process.env.POSTGRES_URL;
+  if (!raw) return undefined;
+  const pooled = new URL(raw);
+  pooled.searchParams.set("uselibpqcompat", "true");
+  return pooled.toString();
+}
+
+const url = process.env.DATABASE_URL || supabasePooledUrl();
 
 if (!url) {
   console.log("[migrate] No DATABASE_URL set — skipping migrations.");
